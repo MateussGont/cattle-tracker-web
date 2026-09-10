@@ -4,6 +4,7 @@ Aplicação de rastreamento do rebanho: frontend React/Vite/MapLibre, API Fastif
 
 ## Organização
 
+- [Planejamento semanal: piloto até 28/02/2027, com 5 h semanais da equipe](https://github.com/MateussGont/cattle-tracker-lora/blob/main/docs/planejamento-semanal.md).
 - [Project central](https://github.com/users/MateussGont/projects/1) e [próximos passos](https://github.com/MateussGont/cattle-tracker-lora/blob/main/docs/backlog.md).
 - [Manual de cadastro do brinco](docs/manual-cadastro-brinco.md).
 - [Arquitetura](docs/architecture.md), [plano de evolução](https://github.com/MateussGont/cattle-tracker-lora/blob/main/docs/plano-evolucao.md) e [revisão de código](https://github.com/MateussGont/cattle-tracker-lora/blob/main/docs/revisao-cattle-tracker-lora.md).
