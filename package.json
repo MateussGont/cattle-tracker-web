@@ -1,0 +1,22 @@
+{
+  "name": "cattle-tracker-web",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Aplicação web e API do Cattle Tracker; firmware em cattle-tracker-lora.",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "build:backend": "npm run build --workspace backend",
+    "build:frontend": "npm run build --workspace frontend",
+    "test:backend": "npm run test --workspace backend",
+    "test:frontend": "npm run test --workspace frontend",
+    "db:generate": "npm run db:generate --workspace backend",
+    "db:migrate": "npm run db:migrate --workspace backend",
+    "db:seed": "npm run db:seed --workspace backend",
+    "firmware:import": "node scripts/import-firmware.mjs"
+  }
+}
