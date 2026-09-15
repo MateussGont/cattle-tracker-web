@@ -1,7 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { createDeviceSchema, listDevicesQuerySchema, updateDeviceSchema } from "../schemas/device.js";
+import { listDevicesQuerySchema, updateDeviceSchema } from "../schemas/device.js";
 import {
-  createDevice,
   findDeviceById,
   listDevices,
   updateDeviceStatus,
@@ -40,13 +39,11 @@ export async function deviceRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.post("/api/devices", async (request, reply) => {
-    if (request.user.role !== "admin") {
-      return reply.code(403).send({ error: "forbidden", message: "Apenas administradores podem provisionar dispositivos." });
-    }
-    const body = createDeviceSchema.parse(request.body);
-    const device = await createDevice(body);
-    return reply.code(201).send(device);
+  app.post("/api/devices", async (_request, reply) => {
+    return reply.code(410).send({
+      error: "provisioning_session_required",
+      message: "Use /api/provisioning/sessions para que o servidor reserve a identidade do dispositivo.",
+    });
   });
 
   app.get("/api/devices/:id", async (request, reply) => {

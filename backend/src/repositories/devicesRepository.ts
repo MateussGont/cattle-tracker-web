@@ -6,7 +6,7 @@ export async function findDeviceByRadioId(radioDeviceId: number) {
   const [device] = await db
     .select()
     .from(devices)
-    .where(eq(devices.radioDeviceId, radioDeviceId))
+    .where(and(eq(devices.radioDeviceId, radioDeviceId), eq(devices.provisioningStatus, "active")))
     .limit(1);
   return device ?? null;
 }

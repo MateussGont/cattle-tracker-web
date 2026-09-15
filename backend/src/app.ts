@@ -13,6 +13,7 @@ import { deviceRoutes } from "./routes/devices.js";
 import { gatewayRoutes } from "./routes/gateways.js";
 import { mapRoutes } from "./routes/map.js";
 import { propertyRoutes } from "./routes/properties.js";
+import { provisioningRoutes } from "./routes/provisioning.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { telemetryRoutes } from "./routes/telemetry.js";
 import { registerRealtimeGateway } from "./websocket/realtime.js";
@@ -48,6 +49,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(gatewayRoutes);
   await app.register(mapRoutes);
   await app.register(propertyRoutes);
+  await app.register(provisioningRoutes);
   await app.register(alertRoutes);
   await app.register(settingsRoutes);
   await app.register(dashboardRoutes);

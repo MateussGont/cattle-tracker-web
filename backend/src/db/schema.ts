@@ -49,6 +49,17 @@ export const deviceStatusEnum = pgEnum("device_status", [
   "inactive",
   "maintenance",
 ]);
+export const deviceProvisioningStatusEnum = pgEnum("device_provisioning_status", [
+  "pending",
+  "active",
+  "failed",
+]);
+export const provisioningSessionStatusEnum = pgEnum("provisioning_session_status", [
+  "pending",
+  "configured",
+  "confirmed",
+  "failed",
+]);
 export const alertTypeEnum = pgEnum("alert_type", [
   "geofence_exit",
   "device_offline",
@@ -159,7 +170,13 @@ export const devices = pgTable("devices", {
   id: uuid("id").primaryKey().defaultRandom(),
   deviceIdentifier: text("device_identifier").notNull(),
   radioDeviceId: integer("radio_device_id").notNull(),
+  hardwareUid: text("hardware_uid"),
   hardwareModel: text("hardware_model"),
+  firmwareVersion: text("firmware_version"),
+  provisioningStatus: deviceProvisioningStatusEnum("provisioning_status").notNull().default("active"),
+  configRevision: integer("config_revision").notNull().default(0),
+  provisionedAt: timestamp("provisioned_at", { withTimezone: true }),
+  lastProvisionedBy: uuid("last_provisioned_by").references(() => users.id, { onDelete: "set null" }),
   gatewayId: uuid("gateway_id").references(() => gateways.id, { onDelete: "set null" }),
   status: deviceStatusEnum("status").notNull().default("active"),
   batteryLevel: smallint("battery_level"),
@@ -173,9 +190,31 @@ export const devices = pgTable("devices", {
 }, (table) => ({
   deviceIdentifierUnique: uniqueIndex("devices_identifier_unique").on(table.deviceIdentifier),
   radioDeviceIdUnique: uniqueIndex("devices_radio_device_id_unique").on(table.radioDeviceId),
+  hardwareUidUnique: uniqueIndex("devices_hardware_uid_unique")
+    .on(table.hardwareUid)
+    .where(sql`hardware_uid IS NOT NULL`),
   statusIdx: index("devices_status_idx").on(table.status),
   lastSeenIdx: index("devices_last_seen_idx").on(table.lastSeen),
   gatewayIdx: index("devices_gateway_idx").on(table.gatewayId),
+}));
+
+export const provisioningSessions = pgTable("provisioning_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  hardwareUid: text("hardware_uid").notNull(),
+  deviceId: uuid("device_id").notNull().references(() => devices.id, { onDelete: "cascade" }),
+  radioDeviceId: integer("radio_device_id").notNull(),
+  configRevision: integer("config_revision").notNull(),
+  firmwareVersion: text("firmware_version").notNull(),
+  status: provisioningSessionStatusEnum("status").notNull().default("pending"),
+  createdBy: uuid("created_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  idempotencyKeyUnique: uniqueIndex("provisioning_sessions_idempotency_key_unique").on(table.idempotencyKey),
+  hardwareUidIdx: index("provisioning_sessions_hardware_uid_idx").on(table.hardwareUid),
+  statusExpiresIdx: index("provisioning_sessions_status_expires_idx").on(table.status, table.expiresAt),
 }));
 
 /**
@@ -329,6 +368,12 @@ export const devicesRelations = relations(devices, ({ one, many }) => ({
   assignments: many(deviceAssignments),
   locations: many(locations),
   gateway: one(gateways, { fields: [devices.gatewayId], references: [gateways.id] }),
+  provisioningSessions: many(provisioningSessions),
+}));
+
+export const provisioningSessionsRelations = relations(provisioningSessions, ({ one }) => ({
+  device: one(devices, { fields: [provisioningSessions.deviceId], references: [devices.id] }),
+  createdByUser: one(users, { fields: [provisioningSessions.createdBy], references: [users.id] }),
 }));
 
 export const deviceAssignmentsRelations = relations(deviceAssignments, ({ one }) => ({
