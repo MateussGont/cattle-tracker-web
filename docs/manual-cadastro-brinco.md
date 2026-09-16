@@ -4,14 +4,14 @@ O aplicativo provisiona unidades que já saem com a mesma imagem genérica de fi
 
 ## Passo a passo
 
-1. Use Chrome ou Edge em HTTPS/localhost, entre como administrador e abra **Dispositivos → Novo dispositivo**.
+1. Use Chrome ou Edge em HTTPS/localhost, entre como administrador e abra **Brincos → Registrar brinco**.
 2. Conecte somente o brinco desejado e selecione sua porta USB. O aplicativo lê `hardwareUid`, versão e estado antes de qualquer cadastro.
-3. Informe `deviceIdentifier` e, opcionalmente, modelo, gateway e animal.
+3. Informe `deviceIdentifier` e, opcionalmente, o modelo técnico.
 4. Clique **Reservar ID e configurar**. O backend cria ou retoma uma sessão idempotente e reserva transacionalmente um `radioDeviceId` entre 1 e 65535.
 5. O firmware grava UID lógico, ID e revisão em NVS, relê os dados e confirma a operação.
 6. Reinicie o brinco e clique **Verificar após reinício e ativar**. O dispositivo só fica ativo quando a leitura USB coincide exatamente com a reserva.
 
-O `hardwareUid` vem do MAC de fábrica do ESP32-S3 e não muda. O valor zero identifica unidade não provisionada. Associação a animal/gateway permanece no backend e não exige regravação.
+O `hardwareUid` vem do MAC de fábrica do ESP32-S3 e não muda. O valor zero identifica unidade não provisionada. Animais, propriedades e associações operacionais não fazem parte do MVP de bancada.
 
 Uma interrupção pode ser retomada conectando novamente o mesmo hardware. Uma unidade já provisionada recusa mudança casual de ID; recondicionamento deverá ter fluxo administrativo próprio. A atualização de firmware aparece como manutenção e não faz parte do caminho normal.
 
@@ -21,6 +21,6 @@ O frontend usa JSON Lines correlacionado por `requestId`: `get_info` para identi
 
 ## Validação
 
-Registre por unidade: `deviceIdentifier | hardwareUid | radioDeviceId | configRevision | firmware | gateway | animal | leitura após reinício | primeira telemetria | responsável`.
+Registre por unidade: `deviceIdentifier | hardwareUid | radioDeviceId | configRevision | firmware | leitura após reinício | primeira telemetria | responsável`.
 
 Builds e testes automatizados não substituem a prova com placa real, navegador e backend conectados.

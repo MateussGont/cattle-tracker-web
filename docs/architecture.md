@@ -2,6 +2,19 @@
 
 # Arquitetura do sistema
 
+## Recorte vigente da interface
+
+Para a bancada M1, a interface expõe somente `Mapa`, `Brincos` e `Gateway`.
+O mapa consulta `GET /api/map/devices` e mostra a última posição do próprio
+brinco, sem depender de animal, propriedade ou cerca virtual. O cadastro USB
+cria apenas a identidade técnica do brinco. A tela Gateway usa
+`GET /api/gateways` e mostra somente dados observados pelo backend; ausência
+de telemetria de brincos não é apresentada como prova de gateway offline.
+
+As tabelas e serviços de domínio mais amplo permanecem no backend como base
+evolutiva, mas não orientam a navegação do MVP. Consulte
+[`mvp-web-bancada.md`](mvp-web-bancada.md) para limites e critérios de retorno.
+
 ## Visão geral
 
 ```text
@@ -81,8 +94,10 @@ armazenada silenciosamente.
    `alertService.raiseAlertOnce`/`clearAlert` para não duplicar alertas a
    cada ciclo enquanto a condição persiste.
 5. O resultado é publicado no WebSocket (`backend/src/websocket/realtime.ts`)
-   e o frontend invalida as queries do mapa/dashboard/alertas
-   (`frontend/src/hooks/useRealtimeUpdates.ts`).
+   e o frontend do M1 atualiza somente mapa, lista de brincos e observação do
+   gateway (`frontend/src/hooks/useRealtimeUpdates.ts`). Serviços de domínio
+   mais amplos podem continuar processando no backend, mas não são expostos
+   como telas neste recorte.
 
 `POST /api/telemetry` (autenticado por um header `x-gateway-key` — um
 segredo de dispositivo, não um JWT de usuário) existe como caminho

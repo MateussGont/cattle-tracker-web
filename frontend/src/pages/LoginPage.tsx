@@ -11,7 +11,7 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/map" replace />;
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -31,7 +31,7 @@ export function LoginPage() {
     <div className="flex h-screen items-center justify-center bg-slate-50">
       <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
         <h1 className="text-xl font-semibold text-slate-900">Cattle Tracker</h1>
-        <p className="mt-1 text-sm text-slate-500">Entre para acompanhar o rebanho.</p>
+        <p className="mt-1 text-sm text-slate-500">Entre para validar brincos e gateway.</p>
 
         <label className="mt-6 block text-sm font-medium text-slate-700" htmlFor="email">
           E-mail
