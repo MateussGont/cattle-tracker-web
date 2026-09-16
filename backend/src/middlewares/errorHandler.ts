@@ -2,6 +2,7 @@ import type { FastifyError, FastifyReply, FastifyRequest } from "fastify";
 import { ZodError } from "zod";
 import { NotFoundError } from "../services/deviceAssignmentService.js";
 import { UnknownDeviceError } from "../services/telemetryService.js";
+import { ProvisioningError } from "../services/provisioningService.js";
 
 export function errorHandler(error: FastifyError | Error, request: FastifyRequest, reply: FastifyReply): void {
   if (error instanceof ZodError) {
@@ -20,6 +21,11 @@ export function errorHandler(error: FastifyError | Error, request: FastifyReques
 
   if (error instanceof UnknownDeviceError) {
     reply.code(422).send({ error: "unknown_device", message: error.message });
+    return;
+  }
+
+  if (error instanceof ProvisioningError) {
+    reply.code(error.statusCode).send({ error: error.code, message: error.message });
     return;
   }
 

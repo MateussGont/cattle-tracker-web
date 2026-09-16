@@ -1,151 +1,154 @@
 import { ESPLoader, Transport } from "esptool-js";
 
 const FIRMWARE_URL = "/firmware/collar-latest.bin";
-// collar-latest.bin is a merged image containing bootloader, partitions,
-// boot_app0 and application at their proper offsets, so it starts at 0x0.
 const FLASH_ADDRESS = 0x0;
 const PROVISION_BAUD_RATE = 115200;
+const busyPorts = new WeakSet<object>();
 
-export interface FlashProgress {
-  written: number;
-  total: number;
+export interface FlashProgress { written: number; total: number }
+
+export interface DeviceInfoMessage {
+  event: "device_info" | "boot" | "status" | "provision_result";
+  requestId?: string;
+  hardwareUid: string;
+  firmwareVersion: string;
+  provisioned: boolean;
+  radioDeviceId: number;
+  configRevision: number;
+  radioReady: boolean;
 }
 
-/**
- * Flashes the generic collar firmware image (built once for all units, see
- * scripts/sync-firmware.mjs) onto a blank or previously-flashed board over
- * WebSerial. Only needed the first time a physical unit is used — after
- * this, sendProvisionCommand() alone is enough to (re)assign its identity.
- */
+interface ProvisionErrorMessage {
+  event: "provision_error";
+  requestId?: string;
+  code: string;
+  message: string;
+}
+
+type SerialMessage = DeviceInfoMessage | ProvisionErrorMessage | Record<string, unknown>;
+
+export class JsonLineDecoder {
+  private buffer = "";
+
+  push(chunk: string): SerialMessage[] {
+    this.buffer += chunk;
+    const messages: SerialMessage[] = [];
+    let newline = this.buffer.indexOf("\n");
+    while (newline >= 0) {
+      const line = this.buffer.slice(0, newline).trim();
+      this.buffer = this.buffer.slice(newline + 1);
+      if (line.startsWith("{")) {
+        try { messages.push(JSON.parse(line) as SerialMessage); } catch { /* ignore debug/malformed lines */ }
+      }
+      newline = this.buffer.indexOf("\n");
+    }
+    return messages;
+  }
+}
+
+function acquirePort(port: SerialPort): () => void {
+  const key = port as object;
+  if (busyPorts.has(key)) throw new Error("A porta USB já está sendo usada por outra operação.");
+  busyPorts.add(key);
+  return () => busyPorts.delete(key);
+}
+
 export async function flashCollarFirmware(
   port: SerialPort,
   onProgress?: (progress: FlashProgress) => void,
 ): Promise<void> {
-  const response = await fetch(FIRMWARE_URL);
-  if (!response.ok) {
-    throw new Error(`Não foi possível baixar o firmware (${FIRMWARE_URL}): HTTP ${response.status}.`);
-  }
-  const firmware = new Uint8Array(await response.arrayBuffer());
-
-  const transport = new Transport(port, true);
-  const loader = new ESPLoader({
-    transport,
-    baudrate: 115200,
-    terminal: { clean() {}, write() {}, writeLine() {} },
-  });
-
+  const release = acquirePort(port);
   try {
-    await loader.main();
-    await loader.writeFlash({
-      fileArray: [{ data: firmware, address: FLASH_ADDRESS }],
-      flashMode: "keep",
-      flashFreq: "keep",
-      flashSize: "keep",
-      eraseAll: false,
-      compress: true,
-      reportProgress: (_fileIndex, written, total) => onProgress?.({ written, total }),
+    const response = await fetch(FIRMWARE_URL);
+    if (!response.ok) throw new Error(`Não foi possível baixar o firmware: HTTP ${response.status}.`);
+    const firmware = new Uint8Array(await response.arrayBuffer());
+    const transport = new Transport(port, true);
+    const loader = new ESPLoader({
+      transport,
+      baudrate: 115200,
+      terminal: { clean() {}, write() {}, writeLine() {} },
     });
-    await loader.after("hard_reset");
+    try {
+      await loader.main();
+      await loader.writeFlash({
+        fileArray: [{ data: firmware, address: FLASH_ADDRESS }],
+        flashMode: "keep",
+        flashFreq: "keep",
+        flashSize: "keep",
+        eraseAll: false,
+        compress: true,
+        reportProgress: (_fileIndex, written, total) => onProgress?.({ written, total }),
+      });
+      await loader.after("hard_reset");
+    } finally {
+      await transport.disconnect().catch(() => undefined);
+    }
   } finally {
-    await transport.disconnect().catch(() => undefined);
+    release();
   }
 }
 
-export interface DeviceStatusMessage {
-  event: "status" | "boot" | "provisioned" | "awaiting_provisioning" | "provision_error";
-  provisioned?: boolean;
-  radioDeviceId?: number;
-  message?: string;
+function isDeviceInfo(message: SerialMessage): message is DeviceInfoMessage {
+  return ["device_info", "boot", "status", "provision_result"].includes(String(message.event)) &&
+    "hardwareUid" in message && typeof message.hardwareUid === "string" &&
+    "firmwareVersion" in message && typeof message.firmwareVersion === "string";
 }
 
-async function readJsonLine(
-  reader: ReadableStreamDefaultReader<string>,
-  timeoutMs: number,
-): Promise<DeviceStatusMessage> {
-  let buffer = "";
-  const deadline = Date.now() + timeoutMs;
+async function sendSerialRequest(
+  port: SerialPort,
+  payload: Record<string, unknown>,
+  timeoutMs = 8000,
+): Promise<DeviceInfoMessage> {
+  const release = acquirePort(port);
+  const openedHere = !port.readable;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let writer: WritableStreamDefaultWriter<Uint8Array> | undefined;
+  try {
+    if (openedHere) await port.open({ baudRate: PROVISION_BAUD_RATE });
+    if (!port.readable || !port.writable) throw new Error("A porta USB não disponibilizou leitura e escrita.");
+    reader = (port.readable as unknown as ReadableStream<Uint8Array>).getReader();
+    writer = (port.writable as unknown as WritableStream<Uint8Array>).getWriter();
+    await writer.write(new TextEncoder().encode(`${JSON.stringify(payload)}\n`));
 
-  while (Date.now() < deadline) {
-    const remaining = deadline - Date.now();
-    const timeout = new Promise<{ value: undefined; done: true }>((resolve) => {
-      setTimeout(() => resolve({ value: undefined, done: true }), Math.max(remaining, 0));
-    });
-    const result = await Promise.race([reader.read(), timeout]);
-    if (result.done || result.value === undefined) {
-      break;
-    }
-    buffer += result.value;
-    const newlineIndex = buffer.indexOf("\n");
-    if (newlineIndex === -1) {
-      continue;
-    }
-    const line = buffer.slice(0, newlineIndex).trim();
-    buffer = buffer.slice(newlineIndex + 1);
-    if (line.startsWith("{")) {
-      try {
-        return JSON.parse(line) as DeviceStatusMessage;
-      } catch {
-        // Non-JSON debug line (e.g. "collar ready: ..."); keep reading.
+    const decoder = new JsonLineDecoder();
+    const textDecoder = new TextDecoder();
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const remaining = deadline - Date.now();
+      const timedOut = Symbol("timeout");
+      const result = await Promise.race([
+        reader.read(),
+        new Promise<typeof timedOut>((resolve) => window.setTimeout(() => resolve(timedOut), remaining)),
+      ]);
+      if (result === timedOut || result.done) break;
+      for (const message of decoder.push(textDecoder.decode(result.value, { stream: true }))) {
+        if (message.requestId !== payload.requestId) continue;
+        if (message.event === "provision_error") {
+          const error = message as ProvisionErrorMessage;
+          throw new Error(`${error.code}: ${error.message}`);
+        }
+        if (isDeviceInfo(message)) return message;
       }
     }
-  }
-
-  throw new Error("O dispositivo não respondeu a tempo. Confirme que ele está ligado e com o firmware da Cattle Tracker.");
-}
-
-/**
- * Opens the collar's USB-serial port directly (no esptool bootloader
- * protocol involved) and runs one request/response line: "GET_STATUS" to
- * read what a unit is currently set to, or "SET_RADIO_ID <n>" to assign it.
- * Firmware side: firmware/collar/main.cpp, tryHandleSerialCommand().
- */
-export async function sendSerialCommand(
-  port: SerialPort,
-  command: string,
-  timeoutMs = 8000,
-): Promise<DeviceStatusMessage> {
-  const openedHere = !port.readable;
-  if (openedHere) {
-    await port.open({ baudRate: PROVISION_BAUD_RATE });
-  }
-
-  // SerialPort's readable/writable are typed as BufferSource by the
-  // w3c-web-serial community types, one level looser than the DOM lib's
-  // TextDecoderStream/TextEncoderStream (which are Uint8Array-exact) —
-  // both actually carry Uint8Array chunks at runtime, so bridge the two
-  // stream type declarations explicitly rather than fighting the variance.
-  const textDecoder = new TextDecoderStream();
-  const readableClosed = (port.readable as unknown as ReadableStream<Uint8Array>)
-    .pipeTo(textDecoder.writable as unknown as WritableStream<Uint8Array>)
-    .catch(() => undefined);
-  const reader = textDecoder.readable.getReader();
-
-  const textEncoder = new TextEncoderStream();
-  const writableClosed = textEncoder.readable
-    .pipeTo(port.writable as unknown as WritableStream<Uint8Array>)
-    .catch(() => undefined);
-  const writer = textEncoder.writable.getWriter();
-
-  try {
-    await writer.write(`${command}\n`);
-    return await readJsonLine(reader, timeoutMs);
+    throw new Error("O dispositivo não respondeu a tempo. Confirme o cabo e o firmware instalado.");
   } finally {
-    await reader.cancel().catch(() => undefined);
-    await writer.close().catch(() => undefined);
-    await readableClosed;
-    await writableClosed;
-    if (openedHere) {
-      await port.close().catch(() => undefined);
-    }
+    await reader?.cancel().catch(() => undefined);
+    reader?.releaseLock();
+    writer?.releaseLock();
+    if (openedHere) await port.close().catch(() => undefined);
+    release();
   }
 }
 
-export async function getDeviceStatus(port: SerialPort): Promise<DeviceStatusMessage> {
-  return sendSerialCommand(port, "GET_STATUS");
+export function getDeviceInfo(port: SerialPort): Promise<DeviceInfoMessage> {
+  return sendSerialRequest(port, { cmd: "get_info", requestId: crypto.randomUUID() });
 }
 
-export async function provisionRadioDeviceId(port: SerialPort, radioDeviceId: number): Promise<DeviceStatusMessage> {
-  return sendSerialCommand(port, `SET_RADIO_ID ${radioDeviceId}`);
+export function provisionDevice(
+  port: SerialPort,
+  request: { hardwareUid: string; radioDeviceId: number; configRevision: number },
+): Promise<DeviceInfoMessage> {
+  return sendSerialRequest(port, { cmd: "provision", requestId: crypto.randomUUID(), ...request });
 }
 
 export function isWebSerialSupported(): boolean {

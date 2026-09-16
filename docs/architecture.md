@@ -59,9 +59,10 @@ um registro por transmissão) a cada carregamento de tela.
 
 O pacote LoRa (`firmware/common/protocol.h`) carrega um `deviceId: uint16`
 compacto para economizar airtime. Esse valor é o `radio_device_id` da tabela
-`devices`. Um dispositivo precisa ser provisionado (`POST /api/devices`,
-associando `device_identifier` tipo `BRINCO-0001` ao `radioDeviceId`
-numérico) antes que sua telemetria seja aceita — telemetria de um
+`devices`. O aplicativo primeiro lê `hardwareUid` e versão pela USB; então
+`POST /api/provisioning/sessions` reserva de forma transacional um
+`radioDeviceId` entre 1 e 65535. O cadastro só fica ativo após gravação,
+reinício e confirmação dos mesmos valores. Telemetria de um
 `radioDeviceId` desconhecido é descartada com um aviso no log, não
 armazenada silenciosamente.
 

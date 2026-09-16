@@ -10,7 +10,7 @@ Extração a partir de MateussGont/cattle-tracker-lora@4a85dff8f089703848c17a84e
 - LoRa v1: 26 bytes, magic 0xCA71, versão 1, little endian, CRC-16/CCITT com estado inicial 0xFFFF.
 - JSON gateway→API: gatewayId, radioDeviceId, sequence, latitude, longitude, gnssUnixTime, batteryMv, flags; RSSI/SNR opcionais. Tópico padrão cattle-tracker/telemetry.
 - HTTP alternativo: POST /api/telemetry com x-gateway-key.
-- Serial: GET_STATUS e SET_RADIO_ID N, uma linha encerrada por LF; resposta JSON conforme firmware atual.
+- Serial: JSON Lines a 115200 baud. `get_info` retorna `hardwareUid`, versão e estado; `provision` exige `requestId`, UID, ID reservado e revisão. Respostas carregam o mesmo `requestId`. `GET_STATUS` permanece somente para leitura e `SET_RADIO_ID` é recusado.
 - Artefato do brinco: imagem completa ESP32-S3 com bootloader em 0x0, partições em 0x8000, boot_app0 em 0xe000 e aplicação em 0x10000.
 - Caminho web mantido temporariamente: /firmware/collar-latest.bin. A mudança de nomenclatura para brinco será coordenada; não renomear somente um lado.
 

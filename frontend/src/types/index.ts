@@ -50,7 +50,12 @@ export interface Device {
   id: string;
   deviceIdentifier: string;
   radioDeviceId: number;
+  hardwareUid: string | null;
   hardwareModel: string | null;
+  firmwareVersion: string | null;
+  provisioningStatus: "pending" | "active" | "failed";
+  configRevision: number;
+  provisionedAt: string | null;
   gatewayId: string | null;
   status: DeviceStatus;
   batteryLevel: number | null;
