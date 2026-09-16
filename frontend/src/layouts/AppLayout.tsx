@@ -3,16 +3,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { useRealtimeUpdates } from "../hooks/useRealtimeUpdates";
 
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Dashboard" },
   { to: "/map", label: "Mapa" },
-  { to: "/animals", label: "Animais" },
-  { to: "/devices", label: "Dispositivos" },
-  { to: "/gateways", label: "Gateways" },
-  { to: "/history", label: "Histórico" },
-  { to: "/alerts", label: "Alertas" },
-  { to: "/alert-rules", label: "Regras de Alerta" },
-  { to: "/properties", label: "Propriedades" },
-  { to: "/settings", label: "Configurações" },
+  { to: "/devices", label: "Brincos" },
+  { to: "/gateways", label: "Gateway" },
 ];
 
 export function AppLayout() {
@@ -24,6 +17,7 @@ export function AppLayout() {
       <aside className="flex w-60 flex-col border-r border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-4 py-4">
           <p className="text-lg font-semibold text-slate-900">Cattle Tracker</p>
+          <p className="text-xs text-slate-500">MVP de bancada</p>
         </div>
         <nav className="flex-1 space-y-1 p-3">
           {NAV_ITEMS.map((item) => (

@@ -11,11 +11,9 @@ interface RealtimeEvent {
 }
 
 /**
- * Keeps the map, dashboard and alerts screens live without polling: the
- * backend pushes one WebSocket message per ingested telemetry point or new
- * alert (see backend/src/websocket/realtime.ts), and this hook just
- * invalidates the affected TanStack Query caches so the next render
- * refetches fresh data.
+ * Keeps the three bench screens current without coupling them to the
+ * transport payload. Telemetry events refresh the collar map/list and the
+ * gateway's last observed communication.
  */
 export function useRealtimeUpdates(): void {
   const { token, isAuthenticated } = useAuth();
@@ -39,11 +37,9 @@ export function useRealtimeUpdates(): void {
       }
 
       if (message.type === "location_update") {
-        void queryClient.invalidateQueries({ queryKey: ["map-animals"] });
-        void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
-      } else if (message.type === "alert_created") {
-        void queryClient.invalidateQueries({ queryKey: ["alerts"] });
-        void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+        void queryClient.invalidateQueries({ queryKey: ["map-devices"] });
+        void queryClient.invalidateQueries({ queryKey: ["devices"] });
+        void queryClient.invalidateQueries({ queryKey: ["gateways"] });
       }
     };
 

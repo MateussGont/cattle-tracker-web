@@ -24,7 +24,7 @@ describe("apiRequest", () => {
     setAuthToken("token-123");
     const fetchMock = mockFetchOnce({ ok: true, status: 200, json: { ok: true } });
 
-    await apiRequest("/api/animals");
+    await apiRequest("/api/devices");
 
     const [, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer token-123");
@@ -33,7 +33,7 @@ describe("apiRequest", () => {
   it("serializes defined query params and skips undefined ones", async () => {
     const fetchMock = mockFetchOnce({ ok: true, status: 200, json: [] });
 
-    await apiRequest("/api/animals", { query: { status: "active", search: undefined, limit: 10 } });
+    await apiRequest("/api/devices", { query: { status: "active", search: undefined, limit: 10 } });
 
     const [url] = fetchMock.mock.calls[0] as [URL];
     expect(url.searchParams.get("status")).toBe("active");
@@ -44,7 +44,7 @@ describe("apiRequest", () => {
   it("throws ApiError with the server message on a non-ok response", async () => {
     mockFetchOnce({ ok: false, status: 401, json: { error: "unauthorized", message: "Token inválido." } });
 
-    await expect(apiRequest("/api/animals")).rejects.toMatchObject(
+    await expect(apiRequest("/api/devices")).rejects.toMatchObject(
       new ApiError(401, "Token inválido."),
     );
   });
@@ -52,7 +52,7 @@ describe("apiRequest", () => {
   it("returns undefined for a 204 No Content response", async () => {
     mockFetchOnce({ ok: true, status: 204 });
 
-    await expect(apiRequest("/api/alerts/1")).resolves.toBeUndefined();
+    await expect(apiRequest("/api/devices/1")).resolves.toBeUndefined();
   });
 
   it("clears the token and dispatches AUTH_EXPIRED_EVENT on a 401 while authenticated", async () => {
@@ -62,7 +62,7 @@ describe("apiRequest", () => {
     const listener = vi.fn();
     window.addEventListener(AUTH_EXPIRED_EVENT, listener);
 
-    await expect(apiRequest("/api/animals")).rejects.toThrow();
+    await expect(apiRequest("/api/devices")).rejects.toThrow();
 
     expect(listener).toHaveBeenCalledTimes(1);
     window.removeEventListener(AUTH_EXPIRED_EVENT, listener);
