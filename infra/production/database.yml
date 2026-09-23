@@ -1,0 +1,35 @@
+name: cattle-tracker
+
+services:
+  postgres:
+    # PostgreSQL 16 / PostGIS 3.5. Digest fixa exatamente a imagem validada.
+    image: postgis/postgis:16-3.5@sha256:94146ac37bc61e2322f88016056c5920729cb8c64c8542ed590af8fc2abdac07
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: cattle_tracker
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Defina POSTGRES_ADMIN_PASSWORD}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./20-app-role.sql:/docker-entrypoint-initdb.d/20-app-role.sql:ro
+    networks: [private]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d cattle_tracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  private:
+    internal: true
+
+volumes:
+  postgres_data:
