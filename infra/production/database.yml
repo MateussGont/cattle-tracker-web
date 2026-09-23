@@ -3,7 +3,8 @@ name: cattle-tracker
 services:
   postgres:
     # PostgreSQL 16 / PostGIS 3.5. Digest fixa exatamente a imagem validada.
-    image: postgis/postgis:16-3.5@sha256:94146ac37bc61e2322f88016056c5920729cb8c64c8542ed590af8fc2abdac07
+    image: postgis/postgis:16-3.5-alpine@sha256:47e961a569fd52ff31f0fe205ed91eeab17d9f5fff6722e6d7ea6b588748b293
+    command: [postgres, -c, hba_file=/etc/postgresql/pg_hba.conf]
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -14,6 +15,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./20-app-role.sql:/docker-entrypoint-initdb.d/20-app-role.sql:ro
+      - ./pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
     networks: [private]
     healthcheck:
       test: [CMD-SHELL, "pg_isready -U postgres -d cattle_tracker"]
@@ -33,3 +35,4 @@ networks:
 
 volumes:
   postgres_data:
+    name: cattle-tracker_postgres16_data
