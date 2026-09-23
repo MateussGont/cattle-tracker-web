@@ -1,0 +1,2 @@
+# Scripts de inicialização devem funcionar também quando preparados no Windows.
+*.sh text eol=lf
