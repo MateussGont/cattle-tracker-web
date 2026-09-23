@@ -4,14 +4,23 @@ set -euo pipefail
 set +x
 umask 077
 state_dir=/opt/cattle-tracker/shared
+script_dir=$(cd "$(dirname "$0")" && pwd)
 image=eclipse-mosquitto:2.1.2-alpine@sha256:38c0da4f2ef84284d47b3b3eeea1cb3bdeabe81ee10caf0cd5c5ff61ee3ea408
 test "$(id -u)" = 0
 test "$(readlink -f "$state_dir")" = "$state_dir"
 test "$(stat -c '%a:%u:%g' "$state_dir/.env")" = 600:0:0
 exec 9>"$state_dir/.mqtt-setup.lock"
 flock -x 9
-if test -e "$state_dir/mosquitto/passwd" || test -e "$state_dir/gateway-access.json"; then
-  echo 'Credenciais MQTT existentes: nenhuma substituição foi feita. Revise antes de continuar.' >&2
+if test -e "$state_dir/mosquitto/passwd" && test -e "$state_dir/gateway-access.json"; then
+  test -f "$state_dir/mosquitto/passwd" && test ! -L "$state_dir/mosquitto/passwd"
+  test -f "$state_dir/gateway-access.json" && test ! -L "$state_dir/gateway-access.json"
+  chown 1883:1883 "$state_dir/mosquitto/passwd"
+  chmod 0600 "$state_dir/mosquitto/passwd"
+  install -o 1883 -g 1883 -m 0600 "$script_dir/mosquitto.acl" "$state_dir/mosquitto/acl"
+  echo 'Credenciais existentes preservadas; ACL e permissões atualizadas.'
+  exit 0
+elif test -e "$state_dir/mosquitto/passwd" || test -e "$state_dir/gateway-access.json"; then
+  echo 'Configuração parcial encontrada: revise os arquivos antes de continuar.' >&2
   exit 1
 fi
 backend_password=$(awk -F= '$1=="MQTT_BACKEND_PASSWORD" {print $2}' "$state_dir/.env")
@@ -28,8 +37,9 @@ docker run --rm --user 0 --entrypoint mosquitto_passwd -v "$stage:/work" "$image
 awk -F: 'NF!=2 || $2 !~ /^\$/ {bad=1} END {if(NR!=2 || bad) exit 1}' "$stage/passwd"
 printf '{\n  "mqttHost": "127.0.0.1 (via tunel SSH)",\n  "mqttPort": 1883,\n  "mqttUsername": "gateway",\n  "mqttPassword": "%s",\n  "mqttTopic": "cattle-tracker/telemetry",\n  "httpEndpoint": "https://%s/api/telemetry",\n  "gatewayApiKey": "%s"\n}\n' "$gateway_password" "$domain" "$gateway_api_key" > "$stage/gateway-access.json"
 install -d -m 0750 "$state_dir/mosquitto"
-chown 0:1883 "$stage/passwd"
-chmod 0640 "$stage/passwd"
+chown 1883:1883 "$stage/passwd"
+chmod 0600 "$stage/passwd"
+install -o 1883 -g 1883 -m 0600 "$script_dir/mosquitto.acl" "$state_dir/mosquitto/acl"
 mv "$stage/passwd" "$state_dir/mosquitto/passwd"
 mv "$stage/gateway-access.json" "$state_dir/gateway-access.json"
 rmdir "$stage"

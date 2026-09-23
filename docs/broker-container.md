@@ -26,7 +26,7 @@ docker compose --env-file /opt/cattle-tracker/shared/.env -f infra/production/br
 docker compose --env-file /opt/cattle-tracker/shared/.env -f infra/production/broker.yml up -d --wait mosquitto
 ```
 
-O preparador gera uma senha exclusiva para o gateway, reaproveita a senha do backend e usa `mosquitto_passwd` em container para gerar hashes. Recusa sobrescrever credenciais existentes. O arquivo `shared/mosquitto/passwd` fica root:1883, 0640, montado somente leitura no broker. `shared/gateway-access.json` fica root:root, 0600; contém os dados privados para configurar o gateway futuramente. A URL HTTP nesse arquivo é uma referência para etapa posterior, não comprova API publicada.
+O preparador gera uma senha exclusiva para o gateway, reaproveita a senha do backend e usa `mosquitto_passwd` em container para gerar hashes. Se ambos os arquivos de credenciais já existirem, preserva seus valores e atualiza somente a ACL e as permissões; uma configuração parcial interrompe a execução. `shared/mosquitto/passwd` e `shared/mosquitto/acl` ficam 1883:1883, 0600, protegidos pelo diretório pai root 0700 e montados somente leitura no broker. O proprietário específico evita avisos e futuras recusas do Mosquitto. `shared/gateway-access.json` fica root:root, 0600; contém os dados privados para configurar o gateway futuramente. A URL HTTP nesse arquivo é uma referência para etapa posterior, não comprova API publicada.
 
 Para as etapas separadas, execute apenas os serviços explicitamente escolhidos; não use `--remove-orphans`, pois banco e broker compartilham o nome do projeto. O Compose completo em preparação herda os mesmos serviços por `extends`.
 
