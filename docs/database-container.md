@@ -45,3 +45,28 @@ docker exec cattle-tracker-postgres-1 psql -U postgres -d cattle_tracker -c 'SEL
 Volumes persistem se o container for recriado, mas **não são backups**. Para migrar dados a outra VPS, faça dump/restore; copiar apenas o Compose cria um banco novo. Não execute `docker compose down -v` ou `docker volume prune` neste ambiente. Agendamento de backup e restauração serão tratados separadamente.
 
 O comando `docker compose config` sem `--quiet` e a inspeção completa do container podem mostrar senhas interpoladas. Use os comandos de consulta acima para acompanhar sem revelar credenciais.
+
+## Evidência da etapa — 2026-09-23
+
+Configuração aplicada na VPS Ubuntu 24.04, Docker 29.8.1 e Compose 5.5.1, a partir de `da9679b4dfe5` (branch `codex/vps-mvp-deployment`). Fonte copiada para `/opt/cattle-tracker/releases/da9679b4dfe5`; `/opt/cattle-tracker/database` aponta para essa pasta. O `.env` existente foi preservado e recebeu apenas a senha administrativa distinta; continua `root:root`, modo 0600.
+
+Resultados comprovados:
+
+- PostgreSQL **16.15**, PostGIS **3.5**, container `cattle-tracker-postgres-1` saudável.
+- `cattle_tracker` autentica por TCP e não tem privilégios de superusuário, criação de bancos/papéis, replicação ou bypass de RLS.
+- Uma senha propositalmente incorreta foi recusada.
+- `docker port` não retornou mapeamentos, `ss` não encontrou listener 5432 no host e a rede Docker está marcada `Internal=true`.
+- Cliente temporário em outro container autenticou em `postgres:5432` pela rede privada.
+- Um registro sintético sobreviveu a `up --force-recreate`; o ID do container mudou. O schema e a tabela exclusivos do teste foram removidos depois, sem dados de negócio envolvidos.
+- Política de reinício `unless-stopped`; `.env` continua privado. Nenhuma migration da aplicação, seed de demonstração ou conta de usuário web foi criada.
+
+O volume inicial `cattle-tracker_postgres_data` foi preservado, sem container associado, após a tentativa com a variante Debian/16.9. Ele contém apenas a inicialização técnica daquela tentativa, não é o banco ativo nem deve ser confundido com backup. O banco ativo usa **`cattle-tracker_postgres16_data`**. Os três volumes de outros serviços continuam reservados.
+
+Para acompanhar a instalação atual:
+
+```bash
+cd /opt/cattle-tracker/database
+docker compose --env-file /opt/cattle-tracker/shared/.env -f infra/production/database.yml ps
+```
+
+Replicação dos containers/configuração está preparada; cópia externa de dados, backup agendado e teste de restauração ainda não foram executados nesta etapa.
