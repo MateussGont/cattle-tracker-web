@@ -6,7 +6,9 @@ Etapa da [issue #25](https://github.com/MateussGont/cattle-tracker-web/issues/25
 
 `infra/production/broker.yml` define Eclipse Mosquitto 2.1.2, com digest fixo, reinício `unless-stopped`, processo UID/GID 1883, filesystem somente leitura (exceto volume de dados) e logs rotacionados. Usa a rede interna `cattle-tracker_private` e o volume `cattle-tracker_mosquitto_data`, do projeto Compose `cattle-tracker`.
 
-O listener 1883 é acessível aos containers dessa rede e a `127.0.0.1:1883` da VPS. Não é publicado em interfaces públicas. O acesso sem TLS pressupõe essa rede privada; acesso remoto exige túnel SSH ou uma etapa própria de TLS/VPN. A [documentação do Mosquitto](https://mosquitto.org/man/mosquitto-conf-5.html) alerta que usuário/senha sem criptografia não devem trafegar por redes não confiáveis.
+O listener 1883 é acessível aos containers dessa rede e a `127.0.0.1:1883` da VPS. Não é publicado em interfaces públicas. A rede auxiliar `cattle-tracker_broker_access` (bridge não interna) permite o mapeamento de loopback: nesta VPS, somente a rede `internal: true` não ativou o mapeamento. Essa rede auxiliar admite saída do broker, mas não contém o banco; o bind explícito em `127.0.0.1` restringe a entrada à VPS. Consulte [publicação de portas do Docker](https://docs.docker.com/engine/network/port-publishing/).
+
+O acesso sem TLS pressupõe essa rede privada; acesso remoto exige túnel SSH ou uma etapa própria de TLS/VPN. A [documentação do Mosquitto](https://mosquitto.org/man/mosquitto-conf-5.html) alerta que usuário/senha sem criptografia não devem trafegar por redes não confiáveis.
 
 | Usuário | Permissão |
 | --- | --- |

@@ -15,7 +15,7 @@ services:
       - ${STATE_DIR:?Defina STATE_DIR}/mosquitto/acl:/mosquitto/config/acl:ro
       - ${STATE_DIR:?Defina STATE_DIR}/mosquitto/passwd:/mosquitto/config/passwd:ro
       - mosquitto_data:/mosquitto/data
-    networks: [private]
+    networks: [private, broker_access]
     healthcheck:
       test: [CMD-SHELL, "nc -z 127.0.0.1 1883"]
       interval: 15s
@@ -31,6 +31,10 @@ services:
 networks:
   private:
     internal: true
+  broker_access:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
 
 volumes:
   mosquitto_data:
