@@ -1,5 +1,7 @@
 # VPS privada — antes dos endpoints públicos
 
+**Registro da etapa privada.** Em 2026-09-28 a publicação foi autorizada e executada posteriormente. Para o ambiente atual, consulte [domínio público](vps-public-domain.md) e use `compose-public.sh`. Os comandos privados abaixo são referência da etapa anterior, não devem substituir a publicação atual.
+
 Entrega parcial da [issue #25](https://github.com/MateussGont/cattle-tracker-web/issues/25), continuidade do [PR #26](https://github.com/MateussGont/cattle-tracker-web/pull/26). O limite autorizado é concluir a operação interna e parar antes da exposição pública. O Compose desta etapa é **`infra/production/internal.yml`**. Rascunhos locais de `compose.yml`, HTTPS e configuração do host não representam implantação e não devem substituir esta configuração.
 
 ## Serviços e conexões
