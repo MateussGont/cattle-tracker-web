@@ -9,6 +9,8 @@ Aplicação de bancada para validar brincos LoRa e gateway: frontend React/Vite/
 - [Manual de cadastro do brinco](docs/manual-cadastro-brinco.md).
 - [Escopo atual do MVP web de bancada](docs/mvp-web-bancada.md).
 - [Arquitetura](docs/architecture.md), [plano de evolução](https://github.com/MateussGont/cattle-tracker-lora/blob/main/docs/plano-evolucao.md) e [revisão de código](https://github.com/MateussGont/cattle-tracker-lora/blob/main/docs/revisao-cattle-tracker-lora.md).
+- [VPS privada: containers, operação, backups e limite antes da publicação](docs/vps-internal-stack.md).
+- [Domínio público: HTTPS, operação atual e validação](docs/vps-public-domain.md).
 - [Contrato de integração e origem da extração](docs/separacao-repositorios.md).
 
 Frontend e backend permanecem em workspaces npm do mesmo repositório. O gateway físico pertence ao repositório de firmware; o broker faz parte da infraestrutura web. A API concentra autorização e acesso ao banco.
