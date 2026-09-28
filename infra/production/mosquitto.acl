@@ -1,0 +1,5 @@
+user backend
+topic read cattle-tracker/telemetry
+
+user gateway
+topic write cattle-tracker/telemetry
