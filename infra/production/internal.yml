@@ -84,8 +84,8 @@ services:
     environment:
       PGHOST: postgres
       PGDATABASE: cattle_tracker
-      PGUSER: cattle_tracker
-      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      PGUSER: cattle_backup
+      PGPASSWORD: ${POSTGRES_BACKUP_PASSWORD:?Prepare a conta de backup}
       PGCONNECT_TIMEOUT: "10"
     volumes:
       - ./backup-container.sh:/scripts/backup-container.sh:ro
