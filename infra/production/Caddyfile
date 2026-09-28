@@ -1,0 +1,52 @@
+{
+    admin off
+    persist_config off
+    http_port 8080
+    https_port 8443
+    servers {
+        protocols h1 h2
+    }
+}
+
+{$APP_DOMAIN} {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        Strict-Transport-Security "max-age=86400"
+        -Server
+    }
+    @backend path /api/* /ws /healthz
+    handle @backend {
+        reverse_proxy backend:3000 {
+            # Exatamente um proxy confiável. Não aceita IP forjado pelo cliente.
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    handle /firmware/* {
+        root * /srv
+        file_server
+    }
+    handle /assets/* {
+        root * /srv
+        header Cache-Control "public, max-age=31536000, immutable"
+        file_server
+    }
+    handle {
+        root * /srv
+        header Cache-Control no-cache
+        try_files {path} /index.html
+        file_server
+    }
+}
+
+www.{$APP_DOMAIN} {
+    redir https://{$APP_DOMAIN}{uri} permanent
+}
+
+# Healthcheck apenas dentro do container; 8081 não é publicada.
+http://127.0.0.1:8081 {
+    reverse_proxy backend:3000
+}

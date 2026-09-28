@@ -27,6 +27,8 @@ import { registerRealtimeGateway } from "./websocket/realtime.js";
  */
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
+    // Só habilitado atrás do proxy do Compose público; backend sem porta pública.
+    trustProxy: (_address, hop) => hop < env.TRUST_PROXY_HOPS,
     logger:
       env.NODE_ENV === "production"
         ? { level: "info" }
