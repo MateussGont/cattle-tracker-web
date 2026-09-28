@@ -3,6 +3,17 @@
     persist_config off
     http_port 8080
     https_port 8443
+    # Também filtra logs de erro: /ws transporta JWT na query string.
+    log {
+        format filter {
+            wrap json
+            fields {
+                request>uri delete
+                request>headers>Authorization delete
+                request>headers>X-Gateway-Key delete
+            }
+        }
+    }
     servers {
         protocols h1 h2
     }
