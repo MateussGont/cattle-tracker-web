@@ -17,6 +17,20 @@ function handshake(servername, extra = {}) {
 console.log(await handshake(host, { maxVersion: 'TLSv1.2' }));
 console.log(await handshake(host, { minVersion: 'TLSv1.3' }));
 await assert.rejects(handshake('invalid.example.test'), error => error.code === 'ERR_TLS_CERT_ALTNAME_INVALID');
+await assert.rejects(handshake(host, { ca: [] }), error => ['UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'SELF_SIGNED_CERT_IN_CHAIN'].includes(error.code));
+await assert.rejects(handshake(host, { minVersion: 'TLSv1.1', maxVersion: 'TLSv1.1', ciphers: 'DEFAULT:@SECLEVEL=0' }));
+await new Promise((resolve, reject) => {
+  const socket = net.connect({ host, port: 8883 });
+  socket.setTimeout(3000, () => { socket.destroy(); resolve(); });
+  socket.once('error', resolve);
+  socket.once('close', resolve);
+  socket.once('connect', () => socket.write(Buffer.from('101600044d5154540402003c000a746c732d70726f626531', 'hex')));
+  socket.once('data', data => {
+    socket.destroy();
+    if (data[0] === 0x20) reject(Error('Listener aceitou MQTT sem TLS.'));
+    else resolve();
+  });
+});
 await new Promise((resolve, reject) => {
   const socket = tls.connect({ host, port: 8883, servername: host, rejectUnauthorized: true });
   socket.setTimeout(6000, () => socket.destroy(Error('Timeout')));
@@ -37,4 +51,4 @@ await new Promise((resolve, reject) => {
   socket.once('error', resolve);
   socket.once('connect', () => { socket.destroy(); reject(Error('1883 acessível externamente.')); });
 });
-console.log('Certificado e hostname válidos; nome errado e MQTT anônimo recusados; 1883 não acessível.');
+console.log('TLS1.2/1.3 válidos; TLS1.1, CA/nome errados, MQTT sem TLS e anônimo recusados; 1883 não acessível.');

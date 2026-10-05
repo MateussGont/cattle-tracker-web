@@ -1,5 +1,7 @@
 # Domínio público do MVP
 
+> Atualização 2026-10-05: o [MQTT seguro](gateway-mqtt-seguro.md) acrescenta 8883/TCP e um sincronizador de certificados. Use o helper `compose-mqtt-tls.sh` para operar a instalação completa. As evidências abaixo registram a publicação original de 2026-09-28; MQTT não permanece exclusivamente privado após essa nova etapa.
+
 Continuidade da [issue #25](https://github.com/MateussGont/cattle-tracker-web/issues/25) e do [PR #27](https://github.com/MateussGont/cattle-tracker-web/pull/27), após a [validação privada](vps-internal-stack.md). Publicação autorizada pelo responsável em 2026-09-28. Ambiente de validação de bancada, não aceite do hardware ou da operação multi-cliente.
 
 ## Acesso e fronteira pública
