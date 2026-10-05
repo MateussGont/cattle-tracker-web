@@ -1,0 +1,51 @@
+# Overlay de public.yml: somente o broker e o sincronizador precisam ser atualizados.
+services:
+  mosquitto:
+    ports:
+      - "0.0.0.0:8883:8883"
+      - "[::]:8883:8883"
+    volumes:
+      - ./mosquitto-tls.conf:/mosquitto/config/mosquitto.conf:ro
+      - ${STATE_DIR:?}/mosquitto/gateway-passwd:/mosquitto/config/gateway-passwd:ro
+      - mqtt_certs:/certs:ro
+    healthcheck:
+      test: [CMD-SHELL, "nc -z 127.0.0.1 1883 && nc -z 127.0.0.1 8883"]
+  mqtt-cert-init: &cert-sync
+    image: node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91eeab17d9f5fff6722e6d7ea6b588748b293
+    profiles: [setup]
+    entrypoint: [node, /scripts/mqtt-cert-sync.mjs]
+    command: [once]
+    user: "0:1883"
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [DAC_OVERRIDE]
+    security_opt: [no-new-privileges:true]
+    network_mode: none
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?}
+    volumes:
+      - caddy_data:/caddy:ro
+      - mqtt_certs:/certs
+      - ./mqtt-cert-sync.mjs:/scripts/mqtt-cert-sync.mjs:ro
+    logging:
+      driver: json-file
+      options: {max-size: 5m, max-file: "2"}
+  mqtt-cert-sync:
+    <<: *cert-sync
+    profiles: []
+    command: [loop]
+    restart: unless-stopped
+    # Sem socket Docker: acesso somente aos processos do broker para SIGHUP.
+    pid: service:mosquitto
+    cap_add: [DAC_OVERRIDE, KILL]
+    depends_on:
+      mosquitto: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, node, /scripts/mqtt-cert-sync.mjs, health]
+      interval: 60s
+      timeout: 5s
+      retries: 2
+      start_period: 30s
+volumes:
+  mqtt_certs:
+    name: cattle-tracker_mqtt_certs
