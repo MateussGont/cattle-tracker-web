@@ -12,6 +12,7 @@ Aplicação de bancada para validar brincos LoRa e gateway: frontend React/Vite/
 - [VPS privada: containers, operação, backups e limite antes da publicação](docs/vps-internal-stack.md).
 - [Domínio público: HTTPS, operação atual e validação](docs/vps-public-domain.md).
 - [Gateway → VPS: MQTT seguro e roteiro para configurar o firmware](docs/gateway-mqtt-seguro.md).
+- [Acesso privado ao PostgreSQL pelo WireGuard/DBeaver](docs/vpn-database-access.md).
 - [Contrato de integração e origem da extração](docs/separacao-repositorios.md).
 
 Frontend e backend permanecem em workspaces npm do mesmo repositório. O gateway físico pertence ao repositório de firmware; o broker faz parte da infraestrutura web. A API concentra autorização e acesso ao banco.
