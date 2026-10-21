@@ -76,4 +76,16 @@ Referências: [WireGuard quick start](https://www.wireguard.com/quickstart/), [n
 
 ## Evidência
 
-Preparado em 2026-10-21; registrar resultados após execução. Não presumir instalação no Windows, validação DBeaver, entrega ao colaborador ou teste físico do gateway.
+Em 2026-10-21, sobre a implementação inicial `ad1c25d`, VPS Ubuntu24.04/Docker Compose5.5.1:
+
+- Backup prévio `20261021T213038Z`; configuração privada criada com arquivos 0600 e diretórios 0700, sem imprimir segredos.
+- Build Alpine3.22 e validação Compose/shell/Python aprovados. Container VPN saudável.
+- `verify.py` executado em clientes descartáveis com namespace separado, usando os dois perfis: handshake WireGuard e autenticação SCRAM aprovados; SELECT nas três tabelas permitido.
+- Senha inválida, SELECT em `users`, DELETE/UPDATE e DDL recusados. Testes de escrita usam transação explícita READ WRITE e rollback, comprovando ACL independentemente do default read-only.
+- Cliente alterado propositalmente para anunciar rotas mais amplas continuou sem acesso a SSH/HTTP da VPN e SSH da bridge privada. Segundo cliente com listener TCP5432 real também permaneceu inacessível a partir do primeiro.
+- TCP5432 público não respondeu a partir do Windows, em IPv4 e IPv6. Isso é evidência adicional, não substitui inspeção de bindings/firewall.
+- Perfil do proprietário transferido por SSH para pasta privada em `%LOCALAPPDATA%\CattleTracker\vpn`, fora de OneDrive e Git. ACL de diretório restrita ao proprietário, SYSTEM e Administradores. Perfil do colaborador não entregue.
+
+Os clientes de teste estavam dentro da VPS, alcançando o endpoint público pelo próprio host. **Não comprovam travessia da internet a partir do Windows**. A instalação WireGuard1.1.1 foi detectada no computador; importação, ativação e consulta no DBeaver ainda precisam de validação assistida. Nenhum teste físico do gateway integra esta entrega.
+
+Para repetir `verify.py`, montar o script em `/verify.py` e somente o diretório privado de clientes em `/clients:ro`, em container efêmero da imagem VPN com `NET_ADMIN`, rede `cattle-access_edge`, rootfs somente leitura e `/tmp` em tmpfs. Executar `python3 /verify.py mateus` ou `colaborador`. Não rodar com o mesmo perfil ativo no computador, pois WireGuard atualiza o endpoint do peer. O modo `colaborador listen` mantém listener de isolamento por até 120s; `CHECK_PEER=1` exige iniciar e conferir esse listener antes do teste do proprietário.
