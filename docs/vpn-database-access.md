@@ -85,6 +85,8 @@ Em 2026-10-21, sobre a implementação inicial `ad1c25d`, VPS Ubuntu24.04/Docker
 - Cliente alterado propositalmente para anunciar rotas mais amplas continuou sem acesso a SSH/HTTP da VPN e SSH da bridge privada. Segundo cliente com listener TCP5432 real também permaneceu inacessível a partir do primeiro.
 - TCP5432 público não respondeu a partir do Windows, em IPv4 e IPv6. Isso é evidência adicional, não substitui inspeção de bindings/firewall.
 - Perfil do proprietário transferido por SSH para pasta privada em `%LOCALAPPDATA%\CattleTracker\vpn`, fora de OneDrive e Git. ACL de diretório restrita ao proprietário, SYSTEM e Administradores. Perfil do colaborador não entregue.
+- Release final de execução `11353db4f8a0`: recriação e reinício do container aprovados, seguido de novo handshake, consultas e testes negativos. PostgreSQL com bindings `{}`; VPN publica somente UDP51820/IPv4. Sete containers saudáveis e `/healthz` do site retornando `ok`; os seis containers anteriores não foram reiniciados.
+- Backup após configuração `20261021T213851Z`, incluindo estado privado da VPN. Restauração completa não testada nesta etapa.
 
 Os clientes de teste estavam dentro da VPS, alcançando o endpoint público pelo próprio host. **Não comprovam travessia da internet a partir do Windows**. A instalação WireGuard1.1.1 foi detectada no computador; importação, ativação e consulta no DBeaver ainda precisam de validação assistida. Nenhum teste físico do gateway integra esta entrega.
 
