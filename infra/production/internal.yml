@@ -1,0 +1,121 @@
+# Etapa privada: não publica HTTP/HTTPS nem API em interfaces externas.
+name: cattle-tracker
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  postgres:
+    extends: {file: database.yml, service: postgres}
+  mosquitto:
+    extends: {file: broker.yml, service: mosquitto}
+  backend:
+    image: cattle-tracker-backend:${RELEASE_TAG:?Defina RELEASE_TAG}
+    build:
+      context: ../..
+      dockerfile: infra/production/backend.Dockerfile
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgresql://cattle_tracker:${POSTGRES_PASSWORD:?}@postgres:5432/cattle_tracker
+      JWT_SECRET: ${JWT_SECRET:?}
+      JWT_EXPIRES_IN: 8h
+      GATEWAY_API_KEY: ${GATEWAY_API_KEY:?}
+      MQTT_URL: mqtt://mosquitto:1883
+      MQTT_USERNAME: backend
+      MQTT_PASSWORD: ${MQTT_BACKEND_PASSWORD:?}
+      MQTT_TELEMETRY_TOPIC: cattle-tracker/telemetry
+      CORS_ORIGIN: http://localhost:8080
+    depends_on:
+      postgres: {condition: service_healthy}
+      mosquitto: {condition: service_healthy}
+    networks: [private, application]
+    healthcheck:
+      test: [CMD, node, --input-type=module, -e, "import pg from 'pg'; const p=new pg.Pool({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:3000}); try { const r=await fetch('http://127.0.0.1:3000/healthz'); if(!r.ok) throw Error(); await p.query('SELECT 1'); } catch { process.exitCode=1; } finally { await p.end(); }"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging: *logging
+  web:
+    image: cattle-tracker-web-internal:${RELEASE_TAG:?}
+    build:
+      context: ../..
+      dockerfile: infra/production/web-internal.Dockerfile
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /data:uid=1000,gid=1000,mode=0700
+      - /config:uid=1000,gid=1000,mode=0700
+    ports: ["127.0.0.1:8080:8080"]
+    networks: [application, web_access]
+    depends_on:
+      backend: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *logging
+  backup:
+    image: postgis/postgis:16-3.5-alpine@sha256:47e961a569fd52ff31f0fe205ed91eeab17d9f5fff6722e6d7ea6b588748b293
+    entrypoint: [/bin/sh, /scripts/backup-container.sh]
+    command: [loop]
+    restart: unless-stopped
+    init: true
+    user: "0:0"
+    read_only: true
+    cap_drop: [ALL]
+    # Lê os arquivos MQTT 0600/UID1883 do bind mount somente leitura.
+    cap_add: [DAC_OVERRIDE]
+    security_opt: [no-new-privileges:true]
+    environment:
+      PGHOST: postgres
+      PGDATABASE: cattle_tracker
+      PGUSER: cattle_backup
+      PGPASSWORD: ${POSTGRES_BACKUP_PASSWORD:?Prepare a conta de backup}
+      PGCONNECT_TIMEOUT: "10"
+    volumes:
+      - ./backup-container.sh:/scripts/backup-container.sh:ro
+      - ${STATE_DIR:?}:/configuration:ro
+      - /opt/cattle-tracker/backups:/backups
+    networks: [private]
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, /bin/sh, /scripts/backup-container.sh, health]
+      interval: 60s
+      timeout: 5s
+      retries: 2
+      start_period: 60s
+    logging: *logging
+
+networks:
+  private:
+    internal: true
+  application:
+    internal: true
+  broker_access:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
+  web_access:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
+volumes:
+  postgres_data:
+    name: cattle-tracker_postgres16_data
+  mosquitto_data:

@@ -1,0 +1,71 @@
+# HTTPS público; API/PostgreSQL/MQTT continuam privados.
+name: cattle-tracker
+services:
+  postgres:
+    extends: {file: internal.yml, service: postgres}
+  mosquitto:
+    extends: {file: internal.yml, service: mosquitto}
+  backend:
+    extends: {file: internal.yml, service: backend}
+    environment:
+      CORS_ORIGIN: https://${APP_DOMAIN:?Defina APP_DOMAIN}
+      TRUST_PROXY_HOPS: "1"
+  backup:
+    extends: {file: internal.yml, service: backup}
+  web:
+    image: cattle-tracker-web-public:${RELEASE_TAG:?Defina RELEASE_TAG}
+    build:
+      context: ../..
+      dockerfile: infra/production/web.Dockerfile
+      args:
+        APP_DOMAIN: ${APP_DOMAIN:?}
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?}
+    ports:
+      - "0.0.0.0:80:8080"
+      - "[::]:80:8080"
+      - "0.0.0.0:443:8443"
+      - "[::]:443:8443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [application, web_access]
+    depends_on:
+      backend: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:8081/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+networks:
+  private:
+    internal: true
+  application:
+    internal: true
+  broker_access:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
+  web_access:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
+volumes:
+  postgres_data:
+    name: cattle-tracker_postgres16_data
+  mosquitto_data:
+  caddy_data:
+    name: cattle-tracker_caddy_data
+  caddy_config:
+    name: cattle-tracker_caddy_config
