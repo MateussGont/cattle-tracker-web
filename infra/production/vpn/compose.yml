@@ -1,0 +1,36 @@
+# Stack independente: não recria nenhum serviço da aplicação.
+name: cattle-access
+services:
+  vpn:
+    image: cattle-access:${VPN_RELEASE:?Defina VPN_RELEASE}
+    build: .
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN]
+    security_opt: [no-new-privileges:true]
+    sysctls:
+      net.ipv4.ip_forward: "0"
+      net.ipv6.conf.all.disable_ipv6: "1"
+    ports:
+      - "0.0.0.0:51820:51820/udp"
+    volumes:
+      - /opt/cattle-tracker/shared/vpn/server:/configuration:ro
+    networks: [edge, database]
+    healthcheck:
+      test: [CMD, /bin/sh, /app/health.sh]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options: {max-size: 5m, max-file: "2"}
+networks:
+  edge:
+    driver: bridge
+  database:
+    external: true
+    name: cattle-tracker_private
